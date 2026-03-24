@@ -33,7 +33,17 @@ COPY docker/scripts/backup-cron-entrypoint.sh /usr/local/bin/backup-cron-entrypo
 COPY docker/scripts/run-post-start-maintenance.sh /usr/local/bin/run-post-start-maintenance.sh
 COPY docker/scripts/restore-backup.sh /usr/local/bin/restore-backup.sh
 
-RUN chmod 755 \
+RUN sed -i 's/\r$//' \
+        /usr/local/bin/custom-postgres-entrypoint.sh \
+        /etc/postgresql/templates/postgresql.conf.template \
+        /etc/postgresql/templates/pg_hba.conf.template \
+        /docker-entrypoint-initdb.d/01-enable-pgvector.sh \
+        /usr/local/bin/common.sh \
+        /usr/local/bin/run-backup.sh \
+        /usr/local/bin/backup-cron-entrypoint.sh \
+        /usr/local/bin/run-post-start-maintenance.sh \
+        /usr/local/bin/restore-backup.sh \
+    && chmod 755 \
         /usr/local/bin/custom-postgres-entrypoint.sh \
         /docker-entrypoint-initdb.d/01-enable-pgvector.sh \
         /usr/local/bin/common.sh \
