@@ -1,0 +1,124 @@
+name: production-db
+
+x-db-env: &db-env
+  TZ: ${TZ}
+  POSTGRES_DB: ${POSTGRES_DB}
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  DB_PASSWORD_FILE: ${DB_PASSWORD_FILE}
+  PGDATA: ${PGDATA}
+  POSTGRES_INITDB_ARGS: ${POSTGRES_INITDB_ARGS}
+  ENABLE_PGVECTOR: ${ENABLE_PGVECTOR}
+  ENABLE_PG_STAT_STATEMENTS: ${ENABLE_PG_STAT_STATEMENTS}
+  AUTO_CREATE_PG_STAT_STATEMENTS: ${AUTO_CREATE_PG_STAT_STATEMENTS}
+  AUTO_UPGRADE_EXTENSIONS: ${AUTO_UPGRADE_EXTENSIONS}
+  PG_LISTEN_ADDRESSES: ${PG_LISTEN_ADDRESSES}
+  PG_ALLOWED_CIDR: ${PG_ALLOWED_CIDR}
+  PG_MAX_CONNECTIONS: ${PG_MAX_CONNECTIONS}
+  PG_SHARED_BUFFERS: ${PG_SHARED_BUFFERS}
+  PG_EFFECTIVE_CACHE_SIZE: ${PG_EFFECTIVE_CACHE_SIZE}
+  PG_WORK_MEM: ${PG_WORK_MEM}
+  PG_MAINTENANCE_WORK_MEM: ${PG_MAINTENANCE_WORK_MEM}
+  PG_MAX_WAL_SIZE: ${PG_MAX_WAL_SIZE}
+  PG_MIN_WAL_SIZE: ${PG_MIN_WAL_SIZE}
+  PG_CHECKPOINT_TIMEOUT: ${PG_CHECKPOINT_TIMEOUT}
+  PG_EFFECTIVE_IO_CONCURRENCY: ${PG_EFFECTIVE_IO_CONCURRENCY}
+  PG_LOG_MIN_DURATION_STATEMENT: ${PG_LOG_MIN_DURATION_STATEMENT}
+  PG_LOG_CONNECTIONS: ${PG_LOG_CONNECTIONS}
+  PG_LOG_DISCONNECTIONS: ${PG_LOG_DISCONNECTIONS}
+  PG_IDLE_IN_TRANSACTION_SESSION_TIMEOUT: ${PG_IDLE_IN_TRANSACTION_SESSION_TIMEOUT}
+  PG_STATEMENT_TIMEOUT: ${PG_STATEMENT_TIMEOUT}
+  PG_LOG_CHECKPOINTS: ${PG_LOG_CHECKPOINTS}
+  PG_LOG_AUTOVACUUM_MIN_DURATION: ${PG_LOG_AUTOVACUUM_MIN_DURATION}
+  PG_WAL_COMPRESSION: ${PG_WAL_COMPRESSION}
+  PG_SHARED_PRELOAD_LIBRARIES: ${PG_SHARED_PRELOAD_LIBRARIES}
+  PG_STAT_STATEMENTS_MAX: ${PG_STAT_STATEMENTS_MAX}
+  PG_STAT_STATEMENTS_TRACK: ${PG_STAT_STATEMENTS_TRACK}
+  PG_SSL: ${PG_SSL}
+  PG_SSL_CERT_FILE: ${PG_SSL_CERT_FILE}
+  PG_SSL_KEY_FILE: ${PG_SSL_KEY_FILE}
+
+services:
+  db:
+    build:
+      context: .
+      args:
+        POSTGRES_VERSION: ${POSTGRES_VERSION}
+        POSTGRES_MAJOR: ${POSTGRES_MAJOR}
+        PGVECTOR_VERSION: ${PGVECTOR_VERSION}
+    image: production-db/postgres:${POSTGRES_VERSION}-pgvector-${PGVECTOR_VERSION}
+    restart: unless-stopped
+    stop_grace_period: 1m
+    shm_size: ${POSTGRES_SHM_SIZE}
+    environment:
+      <<: *db-env
+    ports:
+      - "${DB_BIND_ADDRESS}:${DB_PORT}:5432"
+    volumes:
+      - type: volume
+        source: postgres_data
+        target: /var/lib/postgresql/data
+      - type: bind
+        source: ${SECRETS_HOST_DIR}
+        target: /run/secrets
+        read_only: true
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - if [ -n "$${DB_PASSWORD_FILE}" ] && [ -f "$${DB_PASSWORD_FILE}" ]; then export PGPASSWORD="$$(cat "$${DB_PASSWORD_FILE}")"; else export PGPASSWORD="$${POSTGRES_PASSWORD}"; fi; pg_isready -h 127.0.0.1 -p 5432 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  backup:
+    image: production-db/postgres:${POSTGRES_VERSION}-pgvector-${PGVECTOR_VERSION}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint:
+      - /usr/local/bin/backup-cron-entrypoint.sh
+    environment:
+      <<: *db-env
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      BACKUP_CONTAINER_DIR: /backups
+      BACKUP_CRON: ${BACKUP_CRON}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS}
+      BACKUP_RUN_ON_START: ${BACKUP_RUN_ON_START}
+    volumes:
+      - type: bind
+        source: ${BACKUP_HOST_DIR}
+        target: /backups
+      - type: bind
+        source: ${SECRETS_HOST_DIR}
+        target: /run/secrets
+        read_only: true
+
+  restore:
+    image: production-db/postgres:${POSTGRES_VERSION}-pgvector-${PGVECTOR_VERSION}
+    profiles:
+      - ops
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint:
+      - /usr/local/bin/restore-backup.sh
+    environment:
+      <<: *db-env
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      BACKUP_CONTAINER_DIR: /backups
+    volumes:
+      - type: bind
+        source: ${BACKUP_HOST_DIR}
+        target: /backups
+      - type: bind
+        source: ${SECRETS_HOST_DIR}
+        target: /run/secrets
+        read_only: true
+
+volumes:
+  postgres_data:
+    name: ${POSTGRES_VOLUME_NAME}

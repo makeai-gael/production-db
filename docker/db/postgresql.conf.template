@@ -1,0 +1,40 @@
+listen_addresses = '${PG_LISTEN_ADDRESSES}'
+port = 5432
+password_encryption = scram-sha-256
+
+max_connections = ${PG_MAX_CONNECTIONS}
+shared_buffers = ${PG_SHARED_BUFFERS}
+effective_cache_size = ${PG_EFFECTIVE_CACHE_SIZE}
+work_mem = ${PG_WORK_MEM}
+maintenance_work_mem = ${PG_MAINTENANCE_WORK_MEM}
+wal_level = replica
+max_wal_size = ${PG_MAX_WAL_SIZE}
+min_wal_size = ${PG_MIN_WAL_SIZE}
+checkpoint_timeout = '${PG_CHECKPOINT_TIMEOUT}'
+checkpoint_completion_target = 0.9
+random_page_cost = 1.1
+effective_io_concurrency = ${PG_EFFECTIVE_IO_CONCURRENCY}
+wal_compression = ${PG_WAL_COMPRESSION}
+track_io_timing = on
+timezone = '${TZ}'
+log_timezone = '${TZ}'
+shared_preload_libraries = '${PG_SHARED_PRELOAD_LIBRARIES}'
+pg_stat_statements.max = ${PG_STAT_STATEMENTS_MAX}
+pg_stat_statements.track = '${PG_STAT_STATEMENTS_TRACK}'
+
+log_destination = 'stderr'
+logging_collector = off
+log_line_prefix = '%m [%p] %q%u@%d '
+log_connections = ${PG_LOG_CONNECTIONS}
+log_disconnections = ${PG_LOG_DISCONNECTIONS}
+log_checkpoints = ${PG_LOG_CHECKPOINTS}
+log_autovacuum_min_duration = '${PG_LOG_AUTOVACUUM_MIN_DURATION}'
+log_lock_waits = on
+log_min_duration_statement = ${PG_LOG_MIN_DURATION_STATEMENT}
+
+idle_in_transaction_session_timeout = '${PG_IDLE_IN_TRANSACTION_SESSION_TIMEOUT}'
+statement_timeout = '${PG_STATEMENT_TIMEOUT}'
+
+ssl = ${PG_SSL}
+ssl_cert_file = '${PG_SSL_CERT_FILE}'
+ssl_key_file = '${PG_SSL_KEY_FILE}'

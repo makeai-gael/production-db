@@ -1,0 +1,17 @@
+.env
+backups/
+validation-backups/
+validation-secrets/
+postgres_data/
+secrets/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+__pycache__/
+*.log
+*.pyc
+*.pyo
+*.pyd
