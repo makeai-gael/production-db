@@ -61,6 +61,42 @@ Recommended production pattern:
 
 Do not give the application superuser access unless you intentionally want the app to control the entire server.
 
+## Create a new database
+
+If you are already connected to the `postgres` database in a GUI tool such as pgAdmin, run:
+
+```sql
+CREATE DATABASE TARGET_DATABASE OWNER TARGET_OWNER;
+```
+
+If the owner role does not exist yet, create it first, then run the database creation as a separate execution:
+
+```sql
+CREATE ROLE TARGET_OWNER LOGIN PASSWORD 'TARGET_PASSWORD';
+```
+
+```sql
+CREATE DATABASE TARGET_DATABASE OWNER TARGET_OWNER;
+```
+
+In `psql`, connect to `postgres` first and then run the same `CREATE DATABASE` command:
+
+```sql
+\c postgres
+CREATE DATABASE TARGET_DATABASE OWNER TARGET_OWNER;
+```
+
+Placeholder mapping:
+
+- replace `TARGET_DATABASE` with the database name to create
+- replace `TARGET_OWNER` with the role that should own that database
+
+Notes:
+
+- `CREATE DATABASE` cannot run inside a transaction block.
+- In pgAdmin, keep auto-commit enabled or run `CREATE ROLE` and `CREATE DATABASE` separately.
+- `\c postgres` is a `psql` meta-command, not SQL.
+
 ## Adding users with different permissions
 
 Use `production_admin` or your configured admin role to create additional login roles.
