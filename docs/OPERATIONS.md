@@ -4,7 +4,7 @@
 
 - Change `POSTGRES_PASSWORD`.
 - Or use `DB_PASSWORD_FILE` with a secret mounted from `SECRETS_HOST_DIR`.
-- Restrict `PG_ALLOWED_CIDR` to the minimum required network range.
+- Restrict `PG_ALLOWED_CIDRS` to the minimum required network ranges.
 - Move `BACKUP_HOST_DIR` to a persistent folder outside the repository.
 - Decide whether TLS is required and, if so, mount certificate files and set `PG_SSL=on`.
 - Validate backup and restore in a non-production environment before first deployment.
@@ -21,6 +21,7 @@ The current `.env` is configured to:
 
 - publish PostgreSQL on all host interfaces with `DB_BIND_ADDRESS=0.0.0.0`
 - allow PostgreSQL client authentication from `192.168.10.0/24`
+- allow internal Docker service-to-service authentication from `172.16.0.0/12`
 - require the host firewall to allow inbound TCP `5432` from `192.168.10.0/24`
 
 Clients on the same LAN can connect with:
@@ -29,7 +30,7 @@ Clients on the same LAN can connect with:
 host=192.168.10.247 port=5432
 ```
 
-If the host IP changes later, update the client connection target. If the LAN subnet changes, update `PG_ALLOWED_CIDR` and restart the stack.
+If the host IP changes later, update the client connection target. If the LAN subnet changes, update `PG_ALLOWED_CIDRS` and restart the stack. Keep the Docker bridge range in that list unless you also change how the backup and restore services connect.
 
 Example Windows firewall command to run in an elevated PowerShell session:
 
@@ -202,7 +203,7 @@ Before restore, stop application writes or put the application into maintenance 
 3. Change `POSTGRES_VERSION`, `POSTGRES_MAJOR`, and `POSTGRES_VOLUME_NAME`.
 4. Rebuild and start the new stack.
 5. Restore the latest validated backup.
-6. If `PGVECTOR_VERSION` changed, run `ALTER EXTENSION vector UPDATE;` in each database that uses pgvector.
+6. Let the post-start maintenance job run and verify in the backup logs that extension upgrades completed successfully.
 7. Run application and schema validation.
 8. Remove the old volume only after cutover is confirmed.
 

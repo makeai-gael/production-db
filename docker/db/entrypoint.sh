@@ -1,8 +1,46 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+trim_whitespace() {
+  local value="$1"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+  printf '%s' "${value}"
+}
+
+build_pg_hba_allowed_rules() {
+  local cidr_list
+  local cidr
+
+  cidr_list="${PG_ALLOWED_CIDRS:-${PG_ALLOWED_CIDR:-}}"
+
+  if [[ -z "$(trim_whitespace "${cidr_list//,/}")" ]]; then
+    echo "PG_ALLOWED_CIDRS (or legacy PG_ALLOWED_CIDR) is required." >&2
+    exit 1
+  fi
+
+  export PG_HBA_ALLOWED_RULES=""
+
+  while IFS= read -r cidr || [[ -n "${cidr}" ]]; do
+    cidr="$(trim_whitespace "${cidr}")"
+
+    if [[ -z "${cidr}" ]]; then
+      continue
+    fi
+
+    PG_HBA_ALLOWED_RULES+="host    all             all             ${cidr}      scram-sha-256"$'\n'
+    PG_HBA_ALLOWED_RULES+="host    replication     all             ${cidr}      scram-sha-256"$'\n'
+  done < <(printf '%s' "${cidr_list}" | tr ',' '\n')
+
+  if [[ -z "${PG_HBA_ALLOWED_RULES}" ]]; then
+    echo "No valid CIDRs were found in PG_ALLOWED_CIDRS." >&2
+    exit 1
+  fi
+}
+
 render_runtime_config() {
   mkdir -p /etc/postgresql/custom
+  build_pg_hba_allowed_rules
   envsubst < /etc/postgresql/templates/postgresql.conf.template > /etc/postgresql/custom/postgresql.conf
   envsubst < /etc/postgresql/templates/pg_hba.conf.template > /etc/postgresql/custom/pg_hba.conf
 }

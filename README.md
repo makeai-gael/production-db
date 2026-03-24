@@ -102,8 +102,8 @@ The restore command:
 - Keep `.env` out of version control.
 - Change `POSTGRES_PASSWORD` before using this outside local testing.
 - Or set `DB_PASSWORD_FILE=/run/secrets/postgres_password.txt` and place the secret in `SECRETS_HOST_DIR`.
-- Restrict `PG_ALLOWED_CIDR` to the exact network(s) that need database access.
-- The current local configuration publishes PostgreSQL on all host interfaces and restricts PostgreSQL clients to the detected LAN subnet `192.168.10.0/24`.
+- Restrict `PG_ALLOWED_CIDRS` to the exact network(s) that need database access.
+- The current local configuration publishes PostgreSQL on all host interfaces and restricts PostgreSQL clients to the detected LAN subnet `192.168.10.0/24`, while also allowing the internal Docker bridge range `172.16.0.0/12` so the backup and restore services can connect.
 - The host firewall must also allow inbound TCP `5432` from `192.168.10.0/24`.
 - Logical backups let you restore to backup timestamps. If you need point-in-time recovery between backups, add WAL archiving and PITR.
 - Major PostgreSQL upgrades must use a new data volume and a controlled cutover. Do not just change the image version and reuse the old volume.
@@ -233,7 +233,7 @@ This is controlled by:
 3. Update `POSTGRES_VERSION`, `POSTGRES_MAJOR`, and `POSTGRES_VOLUME_NAME`.
 4. Start the new stack on a fresh volume.
 5. Restore the latest validated backup.
-6. If `PGVECTOR_VERSION` changed, run `ALTER EXTENSION vector UPDATE;` in each database that uses pgvector.
+6. Let the post-start maintenance job run and verify in the backup logs that extension upgrades completed successfully.
 7. Validate application behavior before removing the old volume.
 
 ## Files

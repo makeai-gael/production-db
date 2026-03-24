@@ -1,5 +1,7 @@
 name: production-db
 
+x-db-image-name: &db-image-name production-db/postgres:${POSTGRES_VERSION}-pgvector-${PGVECTOR_VERSION}
+
 x-db-env: &db-env
   TZ: ${TZ}
   POSTGRES_DB: ${POSTGRES_DB}
@@ -13,7 +15,8 @@ x-db-env: &db-env
   AUTO_CREATE_PG_STAT_STATEMENTS: ${AUTO_CREATE_PG_STAT_STATEMENTS}
   AUTO_UPGRADE_EXTENSIONS: ${AUTO_UPGRADE_EXTENSIONS}
   PG_LISTEN_ADDRESSES: ${PG_LISTEN_ADDRESSES}
-  PG_ALLOWED_CIDR: ${PG_ALLOWED_CIDR}
+  PG_ALLOWED_CIDR: ${PG_ALLOWED_CIDR:-}
+  PG_ALLOWED_CIDRS: ${PG_ALLOWED_CIDRS:-}
   PG_MAX_CONNECTIONS: ${PG_MAX_CONNECTIONS}
   PG_SHARED_BUFFERS: ${PG_SHARED_BUFFERS}
   PG_EFFECTIVE_CACHE_SIZE: ${PG_EFFECTIVE_CACHE_SIZE}
@@ -46,7 +49,7 @@ services:
         POSTGRES_VERSION: ${POSTGRES_VERSION}
         POSTGRES_MAJOR: ${POSTGRES_MAJOR}
         PGVECTOR_VERSION: ${PGVECTOR_VERSION}
-    image: production-db/postgres:${POSTGRES_VERSION}-pgvector-${PGVECTOR_VERSION}
+    image: *db-image-name
     restart: unless-stopped
     stop_grace_period: 1m
     shm_size: ${POSTGRES_SHM_SIZE}
@@ -65,14 +68,15 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - if [ -n "$${DB_PASSWORD_FILE}" ] && [ -f "$${DB_PASSWORD_FILE}" ]; then export PGPASSWORD="$$(cat "$${DB_PASSWORD_FILE}")"; else export PGPASSWORD="$${POSTGRES_PASSWORD}"; fi; pg_isready -h 127.0.0.1 -p 5432 -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+        - pg_isready -q -h 127.0.0.1 -p 5432
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 15
+      start_period: 60s
 
   backup:
-    image: production-db/postgres:${POSTGRES_VERSION}-pgvector-${PGVECTOR_VERSION}
+    image: *db-image-name
+    pull_policy: never
     restart: unless-stopped
     depends_on:
       db:
@@ -97,7 +101,8 @@ services:
         read_only: true
 
   restore:
-    image: production-db/postgres:${POSTGRES_VERSION}-pgvector-${PGVECTOR_VERSION}
+    image: *db-image-name
+    pull_policy: never
     profiles:
       - ops
     depends_on:
